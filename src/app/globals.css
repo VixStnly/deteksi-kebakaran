@@ -88,3 +88,60 @@ body {
 .smoke-pulse-anim {
   animation: smokePulse 3s ease-in-out infinite;
 }
+
+/* Animated Volumetric Billowing Smoke Puffs */
+@keyframes smokeBillow {
+  0% {
+    transform: scale(0.55) translate(0, 0);
+    opacity: 0.1;
+  }
+  30% {
+    opacity: 0.75;
+  }
+  65% {
+    transform: scale(1.35) translate(var(--drift-x, 8px), var(--drift-y, -10px));
+    opacity: 0.45;
+  }
+  100% {
+    transform: scale(2.1) translate(var(--drift-x2, 18px), var(--drift-y2, -22px));
+    opacity: 0;
+  }
+}
+
+.smoke-billow-puff {
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(9px);
+  will-change: transform, opacity;
+  animation: smokeBillow 3.8s cubic-bezier(0.25, 0.9, 0.4, 1) infinite;
+}
+
+/* Flowing Smoke Streamlines */
+@keyframes smokeFlow {
+  0% {
+    stroke-dashoffset: 40;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.smoke-streamline {
+  stroke-dasharray: 8, 12 !important;
+  animation: smokeFlow 1.5s linear infinite !important;
+}
+
+/* Smoke threat alert trajectory line flowing towards user */
+@keyframes threatSmokeFlow {
+  0% {
+    stroke-dashoffset: 48;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.smoke-threat-streamline {
+  stroke-dasharray: 10, 14 !important;
+  animation: threatSmokeFlow 1.0s linear infinite !important;
+}

@@ -250,14 +250,16 @@ export default function LocationInput({
         {/* Quick Hotspot Danger Areas */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-zinc-500 font-mono">Daerah Pantau Cepat:</span>
-          {[
-            INDONESIA_PRESET_LOCATIONS[1], // Pelalawan
-            INDONESIA_PRESET_LOCATIONS[2], // Dumai
-            INDONESIA_PRESET_LOCATIONS[8], // Palangka Raya
-            INDONESIA_PRESET_LOCATIONS[6], // Pontianak
-            INDONESIA_PRESET_LOCATIONS[4], // Kayu Agung
-            INDONESIA_PRESET_LOCATIONS[12] // Bogor
-          ].map((preset, idx) => (
+          {INDONESIA_PRESET_LOCATIONS.filter((p) =>
+            [
+              'Cibungbulang (TPA Galuga)',
+              'Bogor (Kota / Tengah)',
+              'Pelalawan (Pangkalan Kerinci)',
+              'Palangka Raya',
+              'Pontianak',
+              'Bandung Barat (TPA Sarimukti)'
+            ].includes(p.name)
+          ).map((preset, idx) => (
             <button
               key={idx}
               type="button"

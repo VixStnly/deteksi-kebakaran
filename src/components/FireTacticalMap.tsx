@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { HotspotData, WindData, UserLocation, SmokeHazardAssessment } from '@/lib/types';
-import { generateSmokePlumePolygon } from '@/lib/fire-calculator';
+import { generateSmokePlumePolygon, calculateDestinationPoint } from '@/lib/fire-calculator';
 import { LayersIcon, CompassIcon, WindIcon, FlameIcon, CrosshairIcon } from './Icons';
 
 interface FireTacticalMapProps {
@@ -163,7 +163,7 @@ export default function FireTacticalMap({
       group.addLayer(radiusCircle);
     }
 
-    // 3. Draw Smoke Plume Cones for all nearby fires
+    // 3. Draw Smoke Plume Cones & Animated Billowing Smoke Clouds for all nearby fires
     if (showPlume) {
       hotspots.forEach((fire) => {
         const isHeading = fire.isSmokeHeadingToUser;
@@ -175,12 +175,13 @@ export default function FireTacticalMap({
           fire.frpMw
         );
 
+        // A. Base Smoke Plume Cone (Conical dispersion boundary)
         const plumePolygon = L.polygon(plumeCoords, {
           color: isHeading ? '#ef4444' : '#71717a',
           weight: isHeading ? 1.5 : 1,
           dashArray: isHeading ? '4, 4' : '2, 4',
           fillColor: isHeading ? '#dc2626' : '#52525b',
-          fillOpacity: isHeading ? 0.28 : 0.12
+          fillOpacity: isHeading ? 0.22 : 0.10
         });
 
         plumePolygon.bindPopup(`
@@ -189,10 +190,114 @@ export default function FireTacticalMap({
               <span>💨</span> ${isHeading ? '🚨 Proyeksi Asap Menuju Anda' : 'Proyeksi Asap Menjauh'}
             </div>
             <p class="text-zinc-700">Sumber Api: ${fire.areaName}</p>
-            <p class="text-zinc-600">Arah Sebaran Asap: ${windTowards}°</p>
+            <p class="text-zinc-600">Arah Sebaran Asap: Ke ${windTowards}°</p>
           </div>
         `);
         group.addLayer(plumePolygon);
+
+        // B. Animated Smoke Streamlines (Flowing downwind)
+        const maxReachKm = Math.min(
+          55,
+          Math.max(12, windSpeed * 2.2 + Math.sqrt(Math.max(fire.frpMw, 5)) * 1.5)
+        );
+
+        // Central axis streamline
+        const destCenter = calculateDestinationPoint(fire.latitude, fire.longitude, maxReachKm, windTowards);
+        const centerLine = L.polyline([[fire.latitude, fire.longitude], destCenter], {
+          color: isHeading ? '#f87171' : '#a1a1aa',
+          weight: isHeading ? 2.5 : 1.5,
+          className: 'smoke-streamline',
+          opacity: 0.75
+        });
+        group.addLayer(centerLine);
+
+        // Left & Right sub-streamlines inside the plume cone
+        const destLeft = calculateDestinationPoint(fire.latitude, fire.longitude, maxReachKm * 0.82, windTowards - 16);
+        const destRight = calculateDestinationPoint(fire.latitude, fire.longitude, maxReachKm * 0.82, windTowards + 16);
+
+        const leftLine = L.polyline([[fire.latitude, fire.longitude], destLeft], {
+          color: isHeading ? '#fca5a5' : '#71717a',
+          weight: 1.2,
+          className: 'smoke-streamline',
+          opacity: 0.45
+        });
+        const rightLine = L.polyline([[fire.latitude, fire.longitude], destRight], {
+          color: isHeading ? '#fca5a5' : '#71717a',
+          weight: 1.2,
+          className: 'smoke-streamline',
+          opacity: 0.45
+        });
+        group.addLayer(leftLine);
+        group.addLayer(rightLine);
+
+        // C. Animated Volumetric Smoke Billows (Soft pulsing expanding cloud puffs)
+        const puffSteps = [
+          { dist: maxReachKm * 0.10, size: 28, delay: 0.0, angleOffset: 0 },
+          { dist: maxReachKm * 0.22, size: 44, delay: 0.6, angleOffset: -8 },
+          { dist: maxReachKm * 0.38, size: 65, delay: 1.2, angleOffset: 7 },
+          { dist: maxReachKm * 0.55, size: 90, delay: 1.8, angleOffset: -12 },
+          { dist: maxReachKm * 0.72, size: 120, delay: 2.4, angleOffset: 9 },
+          { dist: maxReachKm * 0.90, size: 155, delay: 3.0, angleOffset: 0 }
+        ];
+
+        puffSteps.forEach((step) => {
+          const puffCoord = calculateDestinationPoint(
+            fire.latitude,
+            fire.longitude,
+            step.dist,
+            windTowards + step.angleOffset
+          );
+
+          // Radial gradient smoke styling
+          const smokeGrad = isHeading
+            ? 'radial-gradient(circle, rgba(239, 68, 68, 0.42) 0%, rgba(249, 115, 22, 0.24) 40%, rgba(180, 83, 9, 0.10) 70%, transparent 100%)'
+            : 'radial-gradient(circle, rgba(161, 161, 170, 0.36) 0%, rgba(113, 113, 122, 0.20) 45%, rgba(63, 63, 70, 0.06) 70%, transparent 100%)';
+
+          const puffHtml = `
+            <div
+              class="smoke-billow-puff"
+              style="
+                width: ${step.size}px;
+                height: ${step.size}px;
+                background: ${smokeGrad};
+                animation-delay: ${step.delay}s;
+              "
+            ></div>
+          `;
+
+          const puffIcon = L.divIcon({
+            html: puffHtml,
+            className: 'smoke-puff-wrapper',
+            iconSize: [step.size, step.size],
+            iconAnchor: [step.size / 2, step.size / 2]
+          });
+
+          const puffMarker = L.marker(puffCoord, { icon: puffIcon, interactive: false });
+          group.addLayer(puffMarker);
+        });
+
+        // D. If Smoke is directly heading to user, add high-threat animated trajectory line!
+        if (isHeading) {
+          const threatLine = L.polyline(
+            [
+              [fire.latitude, fire.longitude],
+              [userLocation.lat, userLocation.lon]
+            ],
+            {
+              color: '#ef4444',
+              weight: 2.5,
+              dashArray: '8, 12',
+              className: 'smoke-threat-streamline',
+              opacity: 0.9
+            }
+          );
+          threatLine.bindPopup(`
+            <div class="text-xs p-1 font-bold text-red-600">
+              🚨 Trajektori Asap Mengarah ke Lokasi Anda!
+            </div>
+          `);
+          group.addLayer(threatLine);
+        }
       });
     }
 
