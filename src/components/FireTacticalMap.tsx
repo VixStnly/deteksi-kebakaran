@@ -53,14 +53,12 @@ export default function FireTacticalMap({
         attributionControl: false
       });
 
-      // CartoDB Dark Matter tiles (modern, dark, tactical, non-AI-slop)
-      L.tileLayer(
-        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-        {
-          subdomains: 'abcd',
-          maxZoom: 19
-        }
-      ).addTo(map);
+      // High-contrast dark OpenStreetMap tiles (zero watermark, zero api key, sharp coastlines & cities)
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        className: 'tactical-dark-tiles',
+        attribution: '&copy; OpenStreetMap contributors &copy; NASA FIRMS'
+      }).addTo(map);
 
       // Add Zoom Control to bottom-right
       L.control
@@ -75,7 +73,7 @@ export default function FireTacticalMap({
           position: 'bottomleft',
           prefix: false
         })
-        .addAttribution('&copy; OpenStreetMap &copy; CARTO &copy; NASA FIRMS')
+        .addAttribution('&copy; OpenStreetMap &copy; NASA FIRMS')
         .addTo(map);
 
       // Click to pick location
